@@ -3,148 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>北中區域位置偵測系統Q</title>
+    <title>北中區域位置偵測 - YouTube 自動播放</title>
     <style>
-        /* 參考 image_6c115c.png 的視覺設計 */
+        /* 視覺設計參考 image_6c115c.png */
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f8f9fa; 
+            display: flex; justify-content: center; align-items: center; 
+            height: 100vh; margin: 0; background-color: #f8f9fa; 
         }
         .container { 
-            max-width: 450px; 
-            width: 90%;
-            background: white; 
-            padding: 40px 20px; 
-            border-radius: 20px; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
-            text-align: center;
+            max-width: 400px; width: 90%; background: white; 
+            padding: 40px 20px; border-radius: 20px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: center;
         }
-        h2 { font-size: 1.8rem; margin-bottom: 10px; color: #000; }
-        .range-text { color: #555; margin-bottom: 30px; font-size: 1.1rem; }
+        h2 { font-size: 1.5rem; margin-bottom: 10px; }
+        .range-info { color: #666; margin-bottom: 25px; }
         
         button { 
-            padding: 15px 40px; 
-            font-size: 1.2rem; 
-            cursor: pointer; 
-            background-color: #ff5722; /* 橘紅色按鈕 */
-            color: white; 
-            border: none; 
-            border-radius: 12px; 
-            transition: transform 0.2s, background-color 0.2s;
-            font-weight: bold;
+            padding: 15px 40px; font-size: 1.2rem; cursor: pointer; 
+            background-color: #ff5722; color: white; border: none; 
+            border-radius: 12px; font-weight: bold; transition: 0.3s;
         }
-        button:active { transform: scale(0.95); background-color: #e64a19; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
         
-        #info { 
-            margin-top: 30px; 
-            line-height: 1.8; 
-            color: #666; 
-            font-size: 1rem;
-        }
-        .highlight { color: #ff5722; font-weight: bold; }
+        #info { margin-top: 30px; color: #444; font-size: 1rem; line-height: 1.6; }
+        .alert { color: #ff5722; font-weight: bold; font-size: 1.1rem; }
+        
+        /* 隱藏 YouTube 播放器實體 */
+        #yt-player { display: none; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>區域聲音警報</h2>
-    <p class="range-text">範圍：台中市 至 台北市</p>
+    <h2>區域音樂自動播放</h2>
+    <p class="range-info">偵測範圍：台中市 至 台北市</p>
     
     <button id="startBtn" onclick="initMonitor()">啟動監測系統</button>
     
-    <div id="info">請允許聲音播放與定位權限</div>
+    <div id="info">請點擊按鈕授權定位與音樂播放</div>
+    
+    <!-- 隱藏的播放器容器 -->
+    <div id="yt-player"></div>
 </div>
 
-<!-- 使用 Google 提供的高頻提示音 -->
-<audio id="alarmSound" src="https://actions.google.com/google_terminal/beep.mp3" preload="auto" loop></audio>
-
 <script>
-    const audio = document.getElementById('alarmSound');
+    let player;
     const infoDisp = document.getElementById('info');
     const startBtn = document.getElementById('startBtn');
 
-    // 定義緯度區間 (台中南端至台北北端)
+    // 指定影片 ID: wD71Rfa9odc
+    const TARGET_VIDEO_ID = 'wD71Rfa9odc';
+    
+    // 定義緯度範圍 (台中 24.1 至 台北 25.3)
     const MIN_LAT = 24.1; 
     const MAX_LAT = 25.3;
 
-    let isMonitoring = false;
+    // 1. 載入 YouTube IFrame Player API
+    var tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    var firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-    function initMonitor() {
-        if (isMonitoring) return;
-
-        // 核心修正：點擊當下立即解鎖音訊內容
-        audio.play().then(() => {
-            // 成功播放後立刻暫停，這樣瀏覽器就記住這支程式有權限發聲了
-            audio.pause();
-            audio.currentTime = 0;
-            
-            isMonitoring = true;
-            startBtn.innerText = "偵測中...";
-            startBtn.style.backgroundColor = "#ccc";
-            startBtn.disabled = true;
-            
-            infoDisp.innerHTML = "🔊 聲音權限已解鎖，正在取得 GPS 位置...";
-            startTracking();
-        }).catch(err => {
-            console.error(err);
-            infoDisp.innerHTML = "<span style='color:red;'>無法播放音訊，請確認瀏覽器未阻擋自動播放。</span>";
+    // 2. 初始化播放器
+    function onYouTubeIframeAPIReady() {
+        player = new YT.Player('yt-player', {
+            height: '0',
+            width: '0',
+            videoId: TARGET_VIDEO_ID,
+            playerVars: {
+                'playsinline': 1, // 在 iOS 上不自動切換全螢幕
+                'loop': 1,        // 循環播放
+                'playlist': TARGET_VIDEO_ID
+            },
+            events: {
+                'onReady': () => console.log("播放器準備就緒")
+            }
         });
     }
 
-    function startTracking() {
-        if (!navigator.geolocation) {
-            infoDisp.innerText = "您的裝置不支援 GPS 定位";
+    // 3. 使用者點擊啟動（必須由使用者觸發才能解鎖音訊）
+    function initMonitor() {
+        if (!player || typeof player.playVideo !== 'function') {
+            alert("播放器載入中，請稍候再試");
             return;
         }
 
-        // 使用 watchPosition 進行持續動態監測
+        // 立即嘗試播放並暫停，這步是「解鎖」手機瀏覽器限制的關鍵
+        player.playVideo();
+        setTimeout(() => {
+            player.pauseVideo();
+            startBtn.disabled = true;
+            startBtn.innerText = "監測中...";
+            infoDisp.innerText = "🔊 音樂已授權，正在獲取 GPS 位置...";
+            startTracking();
+        }, 500);
+    }
+
+    // 4. 啟動位置追蹤
+    function startTracking() {
+        if (!navigator.geolocation) {
+            infoDisp.innerText = "您的裝置不支援定位功能";
+            return;
+        }
+        
         navigator.geolocation.watchPosition(updatePosition, handleError, {
-            enableHighAccuracy: true,  // 強制使用高精準度 (GPS)
-            maximumAge: 10000,         // 快取時間
-            timeout: 15000             // 逾時設定
+            enableHighAccuracy: true,
+            maximumAge: 10000,
+            timeout: 20000
         });
     }
 
+    // 5. 判斷位置並控制播放
     function updatePosition(position) {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
-        
-        let statusHtml = `目前位置：<br>緯度 <span class="highlight">${lat.toFixed(4)}</span><br>經度 <span class="highlight">${lng.toFixed(4)}</span><br>`;
+        let statusHtml = `緯度: ${lat.toFixed(4)}<br>經度: ${lng.toFixed(4)}<br>`;
 
-        // 判斷是否落在台中到台北的區間
         if (lat >= MIN_LAT && lat <= MAX_LAT) {
-            statusHtml += `<br><span style="color:red; font-size:1.2rem;">🚨 進入監測區域！警報響起</span>`;
-            if (audio.paused) {
-                audio.play();
+            statusHtml += `<br><span class="alert">🚨 進入目標區域！正在播放音樂</span>`;
+            // 若不在播放狀態 (1 代表正在播放)，則啟動播放
+            if (player.getPlayerState() !== 1) {
+                player.playVideo();
             }
         } else {
-            statusHtml += `<br><span style="color:green;">✅ 目前在區域外，警報關閉</span>`;
-            audio.pause();
-            audio.currentTime = 0;
+            statusHtml += `<br><span>✅ 目前在區域外，音樂停止</span>`;
+            if (player.getPlayerState() === 1) {
+                player.pauseVideo();
+            }
         }
-
         infoDisp.innerHTML = statusHtml;
     }
 
     function handleError(error) {
-        let msg = "";
-        switch(error.code) {
-            case error.PERMISSION_DENIED: msg = "使用者拒絕定位請求"; break;
-            case error.POSITION_UNAVAILABLE: msg = "位置資訊不可用"; break;
-            case error.TIMEOUT: msg = "定位逾時"; break;
-            default: msg = "發生未知錯誤"; break;
-        }
-        infoDisp.innerHTML = `<span style="color:red;">錯誤：${msg}</span>`;
-        // 錯誤後允許重新啟動
-        isMonitoring = false;
-        startBtn.disabled = false;
-        startBtn.innerText = "啟動監測系統";
-        startBtn.style.backgroundColor = "#ff5722";
+        infoDisp.innerHTML = `<span style="color:red;">定位失敗：${error.message}</span>`;
     }
 </script>
 
