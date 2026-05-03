@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>北中區域位置偵測</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 40px 20px; background-color: #f8f9fa; }
+        .container { max-width: 400px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        button { padding: 15px 25px; font-size: 1.1rem; cursor: pointer; background-color: #ff5722; color: white; border: none; border-radius: 8px; }
+        #info { margin-top: 20px; line-height: 1.8; color: #333; }
+        .in-range { color: #d32f2f; font-weight: bold; font-size: 1.2rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>區域聲音警報</h2>
+    <p>範圍：台中市 至 台北市</p>
+    <button onclick="initMonitor()">啟動監測系統</button>
+    
+    <div id="info">準備就緒，請點擊啟動</div>
+</div>
+
+<!-- 預備聲音檔案 (可以使用線上的 mp3 連結) -->
+<audio id="alarmSound" src="https://actions.google.com/google_terminal/beep.mp3" preload="auto"></audio>
+
+<script>
+    const audio = document.getElementById('alarmSound');
+    const infoDisp = document.getElementById('info');
+
+    // 定義範圍：台中市最南端緯度約 24.1, 台北市最北端緯度約 25.3
+    const MIN_LAT = 24.1; 
+    const MAX_LAT = 25.3;
+
+    function initMonitor() {
+        // 解鎖行動裝置上的聲音播放限制
+        audio.play().then(() => {
+            audio.pause();
+            audio.currentTime = 0;
+            startTracking();
+        }).catch(err => {
+            infoDisp.innerText = "請允許聲音播放權限";
+        });
+    }
+
+    function startTracking() {
+        if (!navigator.geolocation) {
+            infoDisp.innerText = "您的瀏覽器不支援定位功能";
+            return;
+        }
+
+        infoDisp.innerText = "正在取得位置...";
+
+        // 使用 watchPosition 持續追蹤
+        navigator.geolocation.watchPosition(updatePosition, handleError, {
+            enableHighAccuracy: true,
+            maximumAge: 30000,
+            timeout: 27000
+        });
+    }
+
+    function updatePosition(position) {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        
+        let statusHtml = `目前緯度: ${lat.toFixed(4)}<br>目前經度: ${lng.toFixed(4)}<br>`;
+
+        // 判斷是否在台中至台北的緯度範圍內
+        if (lat >= MIN_LAT && lat <= MAX_LAT) {
+            statusHtml += `<span class="in-range">🔔 您已進入目標區域！</span>`;
+            playAlarm();
+        } else {
+            statusHtml += `<span>✅ 目前不在目標區域</span>`;
+        }
+
+        infoDisp.innerHTML = statusHtml;
+    }
+
+    function playAlarm() {
+        // 如果聲音沒在播放，就播放它
+        if (audio.paused) {
+            audio.play();
+        }
+    }
+
+    function handleError(error) {
+        infoDisp.innerText = "定位錯誤: " + error.message;
+    }
+</script>
+
+</body>
+</html>
