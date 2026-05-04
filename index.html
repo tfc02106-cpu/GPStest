@@ -1,12 +1,100 @@
+// server.js (Node.js HTTPS + Express)
+import https from 'https';
+import fs from 'fs';
+import express from 'express';
+import path from 'path';
+
+const app = express();
+const PORT = 3000;
+
+// SSL 憑證路徑，請換成你自己憑證
+const options = {
+  key: fs.readFileSync('/home/tfc02106/privkey.pem'),
+  cert: fs.readFileSync('/home/tfc02106/fullchain.pem')
+};
+
+// GPS 資料庫
+let db = {};
+
+// 前端靜態檔案
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
+
+// 手機發送位置 API
+app.post('/api/location', (req, res) => {
+  const { id, lat, lon } = req.body;
+  const timestamp = Date.now();
+  if (!db[id]) db[id] = [];
+  db[id].push({ lat, lon, timestamp });
+  if (db[id].length > 500) db[id] = db[id].slice(-500);
+  res.json({ ok: true });
+});
+
+// 取得所有位置 API
+app.get('/api/locations', (req, res) => {
+  res.json(db);
+});
+
+// HTTPS Server 啟動
+https.createServer(options, app).listen(PORT, '0.0.0.0', () => {
+  console.log(`HTTPS Server running on port ${PORT}`);
+});
+
+/* ---------------------------------------- */
+// public/tracker.html
+/* ---------------------------------------- */
+/* 初始位置設定在台中學校附近，例如台中火車站座標 */
+/* 緯度 24.1477 經度 120.6736 */
+const trackerHTML = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GPS Tracker - 台中學校</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<style>
+html, body { margin:0; padding:0; height:100%; }
+#map { width:100%; height:100%; }
+#status { position:absolute; top:10px; left:10px; z-index:1000; background:white; padding:5px; }
+</style>
+</head>
+<body>
+<div id="status">等待定位...</div>
+<div id="map"></div>
 <script>
-  // 原本
-  // const map = L.map('map').setView([0, 0], 2);
+let phoneId = localStorage.getItem("phoneId");
+if (!phoneId) {
+  phoneId = "phone-" + Math.random().toString(36).slice(2,10);
+  localStorage.setItem("phoneId", phoneId);
+}
 
-  // 改成台中學校附近座標，例如：
-  // 假設座標: 緯度 24.1477, 經度 120.6736（台中市中心示例）
-  const map = L.map('map').setView([24.1477, 120.6736], 16); // 16 放大到街區層級
+const statusEl = document.getElementById("status");
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19
-  }).addTo(map);
+// Leaflet 地圖初始化在台中學校附近
+const map = L.map('map').setView([24.1477, 120.6736], 16);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+const marker = L.marker([24.1477, 120.6736]).addTo(map).bindPopup(phoneId);
+
+function sendLocation(position) {
+  const payload = { id: phoneId, lat: position.coords.latitude, lon: position.coords.longitude, timestamp: Date.now() };
+  fetch('/api/location', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
+    .then(r => r.json())
+    .then(() => {
+      statusEl.textContent = `已送出位置：${payload.lat.toFixed(5)}, ${payload.lon.toFixed(5)}`;
+      marker.setLatLng([payload.lat, payload.lon]);
+      map.setView([payload.lat, payload.lon], 16);
+    })
+    .catch(err => { statusEl.textContent = '送出失敗：' + err.message; });
+}
+
+function handleError(err) { statusEl.textContent = '定位失敗：' + err.message; }
+
+if (navigator.geolocation) {
+  navigator.geolocation.watchPosition(sendLocation, handleError, { enableHighAccuracy:true, maximumAge:5000, timeout:10000 });
+} else {
+  statusEl.textContent = '此瀏覽器不支援定位';
+}
 </script>
+</body>
+</html>`;
