@@ -1,22 +1,5 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GPS Tracker - 台中火車站</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<style>
-html, body { margin:0; padding:0; height:100%; }
-#map { width:100%; height:100%; }
-#status { position:absolute; top:10px; left:10px; z-index:1000; background:white; padding:5px; border:1px solid gray; }
-</style>
-</head>
-<body>
-<div id="status">等待定位...</div>
-<div id="map"></div>
-<script>
-const initialCoordinates = [24.1477, 120.6736]; // 台中火車站座標
+// 初始位置設定在台中學校附近（台中火車站座標示例）
+const initialCoordinates = [24.1477, 120.6736];
 
 let phoneId = localStorage.getItem("phoneId");
 if (!phoneId) {
@@ -24,35 +7,49 @@ if (!phoneId) {
     localStorage.setItem("phoneId", phoneId);
 }
 
+// 建立地圖並設置初始位置
 let map = L.map('map').setView(initialCoordinates, 13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 let marker = L.marker(initialCoordinates).addTo(map);
 
+// 定期更新位置
 async function updateLocation() {
     try {
-        // 改成你的 VM 外部 IP
-        let response = await fetch('http://34.31.102.195:3000/api/locations');
+        let response = await fetch('http://你的VM外部IP:3000/api/locations');
         let data = await response.json();
 
         if (data && data.lat && data.lng) {
+            // 如果獲得真實位置，更新地圖
             map.setView([data.lat, data.lng], 13);
             marker.setLatLng([data.lat, data.lng]);
         } else {
-            console.log("定位失敗，使用台中火車站座標");
+            // 如果定位失敗，送 999，顯示固定位置
+            console.log("定位失敗，送 999");
             map.setView(initialCoordinates, 13);
             marker.setLatLng(initialCoordinates);
+
+            // 可以額外呼叫 API 送 999，例如：
+            await fetch('http://你的VM外部IP:3000/api/locations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: phoneId, lat: 999, lng: 999 })
+            });
         }
-    } catch(e) {
+    } catch (e) {
         console.error(e);
-        console.log("連線錯誤，使用台中火車站座標");
+        console.log("發生錯誤，送 999");
         map.setView(initialCoordinates, 13);
         marker.setLatLng(initialCoordinates);
+
+        await fetch('http://你的VM外部IP:3000/api/locations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: phoneId, lat: 999, lng: 999 })
+        });
     }
-    setTimeout(updateLocation, 5000);
+
+    setTimeout(updateLocation, 5000); // 每5秒更新一次
 }
 
 updateLocation();
-</script>
-</body>
-</html>
