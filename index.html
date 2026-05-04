@@ -1,77 +1,12 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>手機 GPS Tracker</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <style>
-    html, body { margin: 0; padding: 0; height: 100%; }
-    #map { width: 100%; height: 100%; }
-    #status { position: absolute; top: 10px; left: 10px; z-index: 1000; background: white; padding: 5px; }
-  </style>
-</head>
-<body>
-  <div id="status">等待定位...</div>
-  <div id="map"></div>
+<script>
+  // 原本
+  // const map = L.map('map').setView([0, 0], 2);
 
-  <script>
-    // 建立唯一手機 ID
-    let phoneId = localStorage.getItem("phoneId");
-    if (!phoneId) {
-      phoneId = "phone-" + Math.random().toString(36).slice(2, 10);
-      localStorage.setItem("phoneId", phoneId);
-    }
+  // 改成台中學校附近座標，例如：
+  // 假設座標: 緯度 24.1477, 經度 120.6736（台中市中心示例）
+  const map = L.map('map').setView([24.1477, 120.6736], 16); // 16 放大到街區層級
 
-    const statusEl = document.getElementById("status");
-
-    // 建立 Leaflet 地圖
-    const map = L.map('map').setView([0,0], 2);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19
-    }).addTo(map);
-
-    const marker = L.marker([0,0]).addTo(map).bindPopup(phoneId);
-
-    function sendLocation(position) {
-      const payload = {
-        id: phoneId,
-        lat: position.coords.latitude,
-        lon: position.coords.longitude,
-        timestamp: Date.now()
-      };
-
-      // 送資料到 VM Node.js 後端
-      fetch("http://34.31.102.195:3000/api/update-location", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      })
-      .then(r => r.json())
-      .then(() => {
-        statusEl.textContent = `已送出位置：${payload.lat.toFixed(5)}, ${payload.lon.toFixed(5)}`;
-        marker.setLatLng([payload.lat, payload.lon]);
-        map.setView([payload.lat, payload.lon], 15);
-      })
-      .catch(err => {
-        statusEl.textContent = "送出失敗：" + err.message;
-      });
-    }
-
-    function handleError(err) {
-      statusEl.textContent = "定位失敗：" + err.message;
-    }
-
-    if ("geolocation" in navigator) {
-      navigator.geolocation.watchPosition(sendLocation, handleError, {
-        enableHighAccuracy: true,
-        maximumAge: 5000,
-        timeout: 10000
-      });
-    } else {
-      statusEl.textContent = "此瀏覽器不支援定位";
-    }
-  </script>
-</body>
-</html>
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19
+  }).addTo(map);
+</script>
