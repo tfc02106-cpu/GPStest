@@ -1,132 +1,31 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>北中區域移動偵測系統</title>
-    <style>
-        body { font-family: -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f0f2f5; }
-        .container { max-width: 400px; width: 90%; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; }
-        h2 { margin-bottom: 5px; }
-        .sub-title { color: #666; font-size: 0.9rem; margin-bottom: 25px; }
-        button { padding: 15px 40px; font-size: 1.1rem; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 12px; font-weight: bold; width: 100%; }
-        button:disabled { background-color: #ccc; }
-        #info { margin-top: 25px; color: #444; font-size: 0.95rem; line-height: 1.6; text-align: left; background: #f8f9fa; padding: 15px; border-radius: 10px; }
-        .status-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; margin-bottom: 10px; }
-        .moving { background: #e3f2fd; color: #1976d2; }
-        .stay { background: #f5f5f5; color: #616161; }
-        #yt-player { display: none; }
-    </style>
+    <title>GPS Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet/dist/leaflet.css" />
 </head>
 <body>
+    <div id="map" style="width: 100%; height: 100vh;"></div>
+    <script>
+        var map = L.map('map').setView([0, 0], 2); // 初始地圖
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-<div class="container">
-    <h2>移動追蹤音樂播放</h2>
-    <p class="sub-title">台中至台北範圍 | 每 2 分鐘偵測一次</p>
-    
-    <button id="startBtn" onclick="initSystem()">啟動自動偵測</button>
-    
-    <div id="info">
-        請點擊按鈕授權定位與音樂。<br>
-        • 移動中：持續播放<br>
-        • 靜止：播放 60 秒後自動停止
-    </div>
-    
-    <div id="yt-player"></div>
-</div>
-
-<script>
-    let player;
-    let lastPosition = null;
-    let playTimer = null;
-    const VIDEO_ID = 'B7EliniYUrQ';
-    const MIN_LAT = 24.1; 
-    const MAX_LAT = 25.3;
-    const MOVE_THRESHOLD = 0.0005; // 移動判定門檻（約 50 公尺變動）
-
-    // 載入 YouTube API
-    var tag = document.createElement('script');
-    tag.src = "https://www.youtube.com/iframe_api";
-    document.head.appendChild(tag);
-
-    function onYouTubeIframeAPIReady() {
-        player = new YT.Player('yt-player', {
-            height: '0', width: '0', videoId: VIDEO_ID,
-            playerVars: { 'playsinline': 1 }
-        });
-    }
-
-    function initSystem() {
-        if (!player) return alert("播放器準備中...");
-        
-        // 解鎖音訊
-        player.playVideo();
-        setTimeout(() => {
-            player.pauseVideo();
-            document.getElementById('startBtn').disabled = true;
-            document.getElementById('startBtn').innerText = "系統監控中...";
-            
-            // 立即執行第一次偵測
-            checkLocation();
-            // 每 2 分鐘 (120,000ms) 偵測一次
-            setInterval(checkLocation, 120000);
-        }, 500);
-    }
-
-    function checkLocation() {
-        if (!navigator.geolocation) return;
-
-        navigator.geolocation.getCurrentPosition((pos) => {
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
-            const infoBox = document.getElementById('info');
-            
-            // 檢查是否在台中至台北範圍內
-            if (lat >= MIN_LAT && lat <= MAX_LAT) {
-                let isMoving = false;
-                
-                // 判斷是否移動
-                if (lastPosition) {
-                    const dist = Math.sqrt(Math.pow(lat - lastPosition.lat, 2) + Math.pow(lng - lastPosition.lng, 2));
-                    if (dist > MOVE_THRESHOLD) isMoving = true;
+        async function updateLocation() {
+            try {
+                let response = await fetch('http://你的VM外部IP:3000/api/locations');
+                let data = await response.json();
+                if (data && data.lat && data.lng) {
+                    map.setView([data.lat, data.lng], 13);
+                    L.marker([data.lat, data.lng]).addTo(map);
                 }
-                lastPosition = { lat, lng };
-
-                let statusText = isMoving ? 
-                    '<span class="status-tag moving">偵測到移動中</span>' : 
-                    '<span class="status-tag stay">目前位置穩定</span>';
-                
-                infoBox.innerHTML = `${statusText}<br>緯度: ${lat.toFixed(4)}<br>經度: ${lng.toFixed(4)}<br>最後更新: ${new Date().toLocaleTimeString()}`;
-
-                handlePlayback(isMoving);
-            } else {
-                infoBox.innerHTML = "❌ 目前不在監測範圍區域 (台中-台北)。<br>更新時間: " + new Date().toLocaleTimeString();
-                player.pauseVideo();
+            } catch(e) {
+                console.error(e);
             }
-        }, (err) => {
-            document.getElementById('info').innerText = "定位失敗: " + err.message;
-        }, { enableHighAccuracy: true });
-    }
-
-    function handlePlayback(isMoving) {
-        // 清除之前的停止計時器
-        if (playTimer) clearTimeout(playTimer);
-
-        if (isMoving) {
-            // 移動中：持續播放不設限
-            player.playVideo();
-            console.log("移動中，持續播放");
-        } else {
-            // 靜止狀態：播放 60 秒後停止
-            player.playVideo();
-            console.log("靜止中，啟動 60 秒播放限制");
-            playTimer = setTimeout(() => {
-                player.pauseVideo();
-                document.getElementById('info').innerHTML += "<br>🕒 已靜止 60 秒，自動暫停播放。";
-            }, 60000);
+            setTimeout(updateLocation, 5000); // 每5秒更新一次
         }
-    }
-</script>
 
+        updateLocation();
+    </script>
 </body>
 </html>
