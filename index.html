@@ -1,64 +1,149 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
-    <title>GPS Tracker - 台中學校</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <title>機器故障檢測實務 - 智動量測</title>
     <style>
-        html, body { margin:0; padding:0; height:100%; }
-        #map { width:100%; height:100%; }
+        :root {
+            --primary-color: #00d4ff;
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f8fafc;
+        }
+        body {
+            font-family: "Microsoft JhengHei", sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        header {
+            background: linear-gradient(135deg, #001f3f, #00d4ff);
+            width: 100%;
+            padding: 40px 0;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .container {
+            max-width: 1000px;
+            width: 90%;
+            margin: 40px 0;
+        }
+        .video-card {
+            background-color: var(--card-bg);
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .video-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary-color);
+        }
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 ratio */
+            height: 0;
+        }
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .info {
+            padding: 25px;
+        }
+        .info h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            font-size: 1.5rem;
+        }
+        .info p {
+            line-height: 1.6;
+            color: #cbd5e1;
+        }
+        .tag {
+            display: inline-block;
+            background: #334155;
+            color: var(--primary-color);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        footer {
+            margin-top: auto;
+            padding: 20px;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
     </style>
 </head>
 <body>
-<div id="map"></div>
 
-<script>
-const initialCoordinates = [24.1477, 120.6736]; // 台中火車站
+    <header>
+        <h1>機器故障檢測實務</h1>
+        <p>智動量測：陳智榮教授技術精選</p>
+    </header>
 
-let phoneId = localStorage.getItem("phoneId");
-if (!phoneId) {
-    phoneId = "phone-" + Math.random().toString(36).slice(2,10);
-    localStorage.setItem("phoneId", phoneId);
-}
+    <div class="container">
+        
+        <!-- 影片 1 -->
+        <div class="video-card">
+            <div class="video-container">
+                <iframe src="https://www.youtube.com/embed/qa9BdrsX3dg" frameborder="0" allowfullscreen></iframe>
+            </div>
+            <div class="info">
+                <div class="tag">沉浸式互動</div>
+                <h2>沉浸式互動技術助力智慧工廠遠距協同服務</h2>
+                <p>探討如何利用數位雙生（Digital Twin）與 AR/VR/MR 技術，在異地產線進行遠端故障診斷與專業協作，打破地理限制解決維修難題。</p>
+            </div>
+        </div>
 
-let map = L.map('map').setView(initialCoordinates, 13);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-let marker = L.marker(initialCoordinates).addTo(map);
+        <!-- 影片 2 -->
+        <div class="video-card">
+            <div class="video-container">
+                <iframe src="https://www.youtube.com/embed/t4I31IolnZc" frameborder="0" allowfullscreen></iframe>
+            </div>
+            <div class="info">
+                <div class="tag">馬達監診</div>
+                <h2>軸承故障早知道！電流訊號揭開潛在風險</h2>
+                <p>介紹基於馬達電流訊號分析法（MCSA）的故障診斷技術。相較於傳統振動感測器，利用現有驅動器電路即可達成更低成本、高效率的軸承早期監警。</p>
+            </div>
+        </div>
 
-async function updateLocation() {
-    try {
-        let response = await fetch('http://34.31.102.195:3000/api/locations'); // VM外部IP
-        let data = await response.json();
+        <!-- 影片 3 -->
+        <div class="video-card">
+            <div class="video-container">
+                <iframe src="https://www.youtube.com/embed/nrLqbu2Q6Nc" frameborder="0" allowfullscreen></iframe>
+            </div>
+            <div class="info">
+                <div class="tag">生成式 AI</div>
+                <h2>智慧工廠新引擎：生成式 GAI 改變工業未來</h2>
+                <p>深入淺出解析 GAI 在智慧製造中的四大應用類別：設計指引、程式碼生成、瑕疵樣本合成及參數優化，引領製造業進入數位轉型新紀元。</p>
+            </div>
+        </div>
 
-        if (data && data.lat && data.lng) {
-            map.setView([data.lat, data.lng], 13);
-            marker.setLatLng([data.lat, data.lng]);
-        } else {
-            // 定位失敗 → 顯示固定位置 & 送 999
-            map.setView(initialCoordinates, 13);
-            marker.setLatLng(initialCoordinates);
-            await fetch('http://34.31.102.195:3000/api/locations', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: phoneId, lat: 999, lng: 999 })
-            });
-        }
-    } catch (e) {
-        console.error("Fetch Error:", e);
-        map.setView(initialCoordinates, 13);
-        marker.setLatLng(initialCoordinates);
-        await fetch('http://34.31.102.195:3000/api/locations', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: phoneId, lat: 999, lng: 999 })
-        });
-    }
-    setTimeout(updateLocation, 5000); // 5秒更新一次
-}
+    </div>
 
-updateLocation();
-</script>
+    <footer>
+        &copy; 2026 智動量測研究室 | 陳智榮教授
+    </footer>
+
 </body>
 </html>
